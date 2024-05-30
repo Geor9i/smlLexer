@@ -1,5 +1,5 @@
-import { symbols } from "./constants.js";
 import JSExpressionModule from "./lexerModules/jsExpressionModule/jsExpressionModule.js";
+import { util } from "./util.js";
 
 export default class SmlLexer {
     constructor(module) {
@@ -17,45 +17,18 @@ export default class SmlLexer {
     }
 
     tokenise(string) {
-        const initialFilterArr = this.removeEmptySpace(string);
+        const initialFilterArr = string.split(/\s+/);
+        console.log(initialFilterArr);
         const firstPassTokens = [];
-        initialFilterArr.forEach(str => {
-            const isNum = !isNaN(Number(str));
+        initialFilterArr.forEach(symbol => {
+            const isNum = symbol.length &&!isNaN(Number(symbol));
             if (isNum && this.module.acceptsNumbers) {
-                firstPassTokens.push(Number(str));
+                firstPassTokens.push({symbol, type: 'number'});
             } else {
-                const tokens = this.module.getToken(str);
-                firstPassTokens.push({ str, tokens });
-                console.log(tokens);
+                const tokens = this.module.getTokens(symbol);
+                firstPassTokens.push(...tokens);
             }
         })
         console.log(firstPassTokens);
     }
-
-    removeEmptySpace(string) {
-        const initialFilter = [];
-        let buffer = '';
-        for (let char of string) {
-            if(['\n', '\t', '\r', '\v', '\f', ' '].includes(char)) {
-                buffer.length ? initialFilter.push(buffer) : null;
-                buffer = '';
-            } else {
-                if (!this.module.symbols.has(char)) {
-                    const charCode = char.charCodeAt(0);
-                    const isNum = charCode >= 48 && charCode <= 57;
-                    const isLetter = (charCode >= 65 && charCode <= 90) || (charCode >= 97 && charCode <= 122);
-                    if ((!isNum && this.module.acceptsNumbers) && (!isLetter && this.module.acceptsLetters)) {
-                        throw new Error(`"${char}" is not supported by JSExpressionModule`)
-                    }
-                }
-                buffer += char
-            }
-        }
-        if (buffer.length) {
-            initialFilter.push(buffer);
-        }
-        return initialFilter;
-    }
-
-
 }

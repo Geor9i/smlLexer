@@ -1,5 +1,9 @@
 import SmlLexer from "./lexer.js";
-
+import { string } from "./string.js";
 const lexer = new SmlLexer('jsExpressionModule');
-lexer.ast(`5 ++ 2`) 
+const startTime = performance.now()
+lexer.ast(string) 
+const endTime = performance.now()
+const result = endTime - startTime;
+console.log('time: ', result);
 const expression = '5 + 6 - 2 * ( 9 - 8 )';
