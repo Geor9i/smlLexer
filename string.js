@@ -1,1 +1,1 @@
-export const string = `var3+3+null`;
+export const string = ` ++--*<!===++varx 3`;

@@ -4,143 +4,147 @@ export default class JSExpressionModule {
     constructor() {
         this.tokens = tokens;
         this.wordTokens = wordTokens;
-        this.acceptsNumbers = true;
-        this.acceptsLetters = true;
         this.cache = {};
+        this.charArr = []; 
+        this.tokensArr = [];
+        // Optimise this.tokens
+        for (let [tokenIndex, tokenGroup] of Object.entries(this.tokens)) {
+            let maxLength = 0;
+            let counter = 0;
+            for (let token in tokenGroup) {
+                maxLength = token.length > maxLength ? token.length : maxLength;
+                counter++
+            }
+            this.tokens[tokenIndex] = {
+                tokens: tokenGroup,
+                maxTokenLength: maxLength,
+                tokenAmount: counter,
+            }
+        }
     }
 
-    getTokens(inputString) {
-
-        //Process words from symbols
-        if (this.cache.hasOwnProperty(inputString)) {
-            return this.cache[inputString];
-        }
-        let charArr = inputString.split('');
-        const tokensArr = [];
-        let chunks = [];
-        let startIndex = 0;
-        let processingWords = false;
-        
-        for (let i = 0; i < charArr.length;i++) {
-            let char = charArr[i];
-            const currentCharType = util.charType(char);
-            if (currentCharType === 'letter' || (currentCharType === 'number' && (processingWords || (util.charType(charArr[i + 1]) !== null)))) { 
-                if (!processingWords) {
-                    processingWords = true;
-                    i > 0 && chunks.push({string: charArr.slice(startIndex, i).join(''), startIndex, endIndex: Math.max(0, i - 1), isWord: false});
-                    startIndex = i;
-                }
+    tokenise(string) {
+        const chunks = string.split(/\s+/).filter(str => str.length);
+        const tokens = [];
+        for (let symbol of chunks) {
+            const isNum = symbol.length &&!isNaN(Number(symbol));
+            if (isNum) {
+                this.tokensArr.push({symbol, type: 'number'});
             } else {
-                if(!this.tokens.hasOwnProperty(char) && currentCharType !== 'number' && currentCharType !== 'letter') {
-                    throw new Error(`"${char}" is not a known token!`)
-                }
-                if (processingWords) {
-                    processingWords = false;
-                    i > 0 && chunks.push({string: charArr.slice(startIndex, i).join(''), startIndex, endIndex: Math.max(0, i - 1), isWord: true});
-                    startIndex = i;
-                } 
-            }
-            if (i === charArr.length - 1) {
-                chunks.push({string: charArr.slice(startIndex, i + 1).join(''), startIndex, endIndex: Math.max(0, i - 1), isWord: processingWords});
+                const tokens = this.processChunk(symbol);
+                // this.tokensArr.push(...tokens);
             }
         }
-        for (let i = 0; i < chunks.length;i++) {
-            const chunk = chunks[i];
-            const string = chunk.string;
-            const startIndex  = chunk.startIndex;
-            const endIndex = chunk.endIndex;
-            if(this.cache.hasOwnProperty(string)) {
-                tokensArr.push({
-                    ...this.cache[string],
-                    startIndex,
-                    endIndex
-                });
-                continue;
+           
+        return this.tokensArr;
+    }
+
+    processChunk(inputString) {
+        const chunks = inputString.split(/(\W+)/)
+        .flatMap(str => str.match(/(\W)\1*/g) ?? str)
+        .filter(str => str.length)
+        .map(chunk => {
+            const isWord = /[a-zA-Z0-9]+/.test(chunk);
+            if (isWord) {
+                const token = this.processWords(chunk);
+                this.cache[chunk] = token;
+                return token;
             } 
-            if (chunk.isWord) {
-                let tokenObj;
-                if (this.wordTokens.hasOwnProperty(string)) {
-                    tokenObj = {...this.wordTokens[string], startIndex, endIndex};
-                    tokensArr.push(tokenObj);
-                } else {
-                    tokenObj = {type: "variable", symbol: string, direction: null, precedence: 16, startIndex, endIndex};
-                    tokensArr.push(tokenObj);
-                }
-                this.cache[string] = tokenObj;
-            } else {
-                const availableIndexes = new Set(Array.from({ length: string.length }, (_, index) => index + startIndex));
-                let wordIndexStart = 0;
-                let wordIndexEnd = wordIndexStart;
-                let x = 0;
-                while (availableIndexes.size > 0) {
-                    const char = charArr[x + startIndex];
-                    if (tokens.hasOwnProperty(char)) {
-                        // if the previous charactrers formed a word
-                        if (wordIndexEnd > wordIndexStart) {
-                            wordIndexStart++;
-                            const word = util.combineString(charArr, wordIndexStart, wordIndexEnd + 1);
-                            if (this.wordTokens.hasOwnProperty(word)) {
-                                tokensArr.push({...wordTokens[word], startIndex: wordIndexStart, endIndex: wordIndexEnd});
-                            } else {
-                                const isNum = !isNaN(Number(word));
-                                tokensArr.push({type: isNum ? "number" : "variable", symbol: word, direction: null, precedence: 16, startIndex: wordIndexStart, endIndex: wordIndexStart});
-                            }
-                            wordIndexStart = wordIndexEnd;
-                        }
-                        const possibleTokens = tokens[char];
-                        for (let j = 0;j < possibleTokens.length; j++) {
-                            const tokenObj = possibleTokens[j];
-                            const symbol = tokenObj.symbol;
-                            const symbolLength = symbol.length;
-                            const type = tokenObj.type;
-                            const direction = tokenObj.direction;
-                            const precedence = tokenObj.precedence;
+            return chunk
+        })
+        const tokens = this.processRawSymbols(chunks)
+        return tokens
+    }
 
-                            const difference = symbol.length - char.length;
-                            if (difference) {
-                                let sameLengthString = util.combineString(charArr, x + startIndex, x + startIndex + symbolLength);
-                                if (symbol === sameLengthString) {
-                                    tokensArr.push({symbol, type, direction, precedence, startIndex: x + startIndex, endIdex: x + startIndex + symbolLength})
-                                    for (let k = x;k < x + symbol.length; k++) {
-                                        availableIndexes.delete(k + startIndex);
-                                    }
-                                    x += symbolLength;
-                                    wordIndexStart = x + symbolLength + 1;
-                                    break;
-                                }
-                            } else {
-                                const sameLengthSymbols = possibleTokens.filter(entry => entry.symbol.length === 1);
-                                tokensArr.push({symbols: sameLengthSymbols, symbol, startIndex: x + startIndex, endIdex: x + startIndex + symbol.length});
-                                x += symbolLength;
-                                wordIndexStart = x + symbolLength + 1;
-                                break;
-                            }
-                        }
-                        if(!availableIndexes.has(x + startIndex)) {
-                            x = Array.from(availableIndexes).find(index => index > x + startIndex);
-                            if (!x) break;
-                            x -= startIndex;
-                        }
+    processRawSymbols(chunks) {
+        console.log(chunks);
+        const cacheMakeToken = (tokenMatch, symbol) => {
+            const token = {...tokenMatch, symbol}
+            this.cache[symbol] = {...token};
+            return token;
+        }
+        for (let i = 0;i < chunks.length; i++) {
+            const chunk = chunks[i];
+            if(typeof chunk !== 'string') continue;
+
+            const char = chunk[0];
+            const tokenGroup = this.tokens[char];
+            if (tokenGroup) {
+                const { tokens, maxTokenLength, tokenAmount } = tokenGroup;
+                let tokenMatch = tokens[chunk];
+                if (maxTokenLength === chunk.length && tokenMatch) {
+                    const token = cacheMakeToken(tokenMatch, chunk)
+                    chunks[i] = token;
+                } else {
+                    let missingSymbolLength = maxTokenLength - chunk.length;
+                    // Get reamining potential symbol
+                    const charArr = [...chunk];
+                    const mergedChunkData = [];
+                    for (let j = i;j < chunks.length; j++) {
+                        if (missingSymbolLength <= 0 || (j === chunks.length - 1)) break;
+                        
+                        const nextChunk = chunks[j + 1];
+                        if (typeof nextChunk !== 'string') continue;
+                        charArr.push(...nextChunk);
+                        mergedChunkData.push({index: j + 1, str: nextChunk});
+                        missingSymbolLength -= nextChunk.length;
+                    }
+                    const potentialToken = charArr.join('');
+                    tokenMatch = tokens[potentialToken];
+                    if (tokenMatch) {
+                        const token = cacheMakeToken(tokenMatch, chunk);
+                        chunks[i] = token;
+                        mergedChunkData.forEach(obj => chunks[obj.index] = null);
                     } else {
-                        availableIndexes.delete(x + startIndex);
-                        wordIndexStart++;
-                        wordIndexEnd = x + startIndex;
-                        if (availableIndexes.size > 0) {
-                            x = Array.from(availableIndexes)[0] - startIndex;
-                        } else {
-                            if(wordIndexEnd > wordIndexStart) {
-                                const word = util.combineString(charArr, wordIndexStart, wordIndexEnd + 1);
-                                const isNum = !isNaN(Number(word));
-                                tokensArr.push({type: isNum ? "number" : "variable", symbol: word, direction: null, precedence: 16, startIndex: wordIndexStart, endIndex: wordIndexEnd});
-                            }
-                            break;
+                        let selectedTokenKey = '';
+                        for (let tokenKey in tokens) {
+                            selectedTokenKey = tokenKey.length > selectedTokenKey && potentialToken.includes(tokenKey) ? tokenKey : selectedTokenKey;
                         }
+                        let selectedToken = tokens[selectedTokenKey];
+                        // if the found key is the same length as the original chunk
+                        if (selectedTokenKey.length === chunk.length) {
+                            const token = cacheMakeToken(selectedToken, chunk);
+                            chunks[i] = token;
+                        // if the found key overlaps with another chunk
+                        } else {
+                            let lengthRemainder = selectedTokenKey.length - chunk.length;
+                            const remainingChunk = potentialToken.replace(selectedTokenKey, '');
+                            console.log({remainingChunk, lengthRemainder, selectedTokenKey, chunk});
+                            const token = cacheMakeToken(tokens[selectedTokenKey], selectedTokenKey);
+                            chunks[i] = token;
+                            for (let k = 0;k < mergedChunkData.length; k++) {
+                                const obj = mergedChunkData[k];
+                                const remainder = obj.str.length - lengthRemainder;
+                                if (remainder > 0) {
+                                    chunks[obj.index] = obj.str.slice(obj.str.length - remainder);
+                                    mergedChunkData[k] = null;
+                                    break;
+                                } else {
+                                    lengthRemainder = Math.abs(remainder);
+                                }
+                            }
+                            mergedChunkData.forEach(obj => {
+                                if (obj) {
+                                    chunks[obj.index] = null;
+                                }
+                            });
+                        } 
                     }
                 }
-  
+            } else {
+                throw new Error(`${chunk} is not a known token!`)
             }
+            }
+            console.log(chunks);
         }
-       this.cache[inputString] = tokensArr;
-        return tokensArr
+
+    processWords(string) {
+        let tokenObj;
+        if (this.wordTokens.hasOwnProperty(string)) {
+            tokenObj = { ...this.wordTokens[string], symbol: string };
+        } else {
+            tokenObj = { type: "variable", symbol: string, direction: null, precedence: 16 };
+        }
+        return tokenObj;
     }
 }

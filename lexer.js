@@ -13,22 +13,8 @@ export default class SmlLexer {
 
     ast(string) {
         console.log(string);
-        const tokens = this.tokenise(string);
+        const tokens = this.module.tokenise(string);
+        console.log(tokens);
     }
 
-    tokenise(string) {
-        const initialFilterArr = string.split(/\s+/);
-        console.log(initialFilterArr);
-        const firstPassTokens = [];
-        initialFilterArr.forEach(symbol => {
-            const isNum = symbol.length &&!isNaN(Number(symbol));
-            if (isNum && this.module.acceptsNumbers) {
-                firstPassTokens.push({symbol, type: 'number'});
-            } else {
-                const tokens = this.module.getTokens(symbol);
-                firstPassTokens.push(...tokens);
-            }
-        })
-        console.log(firstPassTokens);
-    }
 }
