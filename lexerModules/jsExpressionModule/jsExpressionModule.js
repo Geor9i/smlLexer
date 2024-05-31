@@ -7,6 +7,8 @@ export default class JSExpressionModule {
         this.cache = {};
         this.charArr = []; 
         this.tokensArr = [];
+        this.clashIndexes = [];
+        this.tokenCounter = 0;
         // Optimise this.tokens
         for (let [tokenIndex, tokenGroup] of Object.entries(this.tokens)) {
             let maxLength = 0;
@@ -30,12 +32,13 @@ export default class JSExpressionModule {
             const isNum = symbol.length &&!isNaN(Number(symbol));
             if (isNum) {
                 this.tokensArr.push({symbol, type: 'number'});
+                this.tokenCounter++;
             } else {
                 const tokens = this.processChunk(symbol);
-                // this.tokensArr.push(...tokens);
+                this.tokensArr.push(...tokens);
             }
         }
-           
+           console.log(this.clashIndexes);
         return this.tokensArr;
     }
 
@@ -48,19 +51,26 @@ export default class JSExpressionModule {
             if (isWord) {
                 const token = this.processWords(chunk);
                 this.cache[chunk] = token;
+                this.tokenCounter++;
                 return token;
             } 
-            return chunk
+            return chunk;
         })
-        const tokens = this.processRawSymbols(chunks)
-        return tokens
+        const tokens = this.processRawSymbols(chunks);
+        return tokens;
     }
 
     processRawSymbols(chunks) {
-        console.log(chunks);
         const cacheMakeToken = (tokenMatch, symbol) => {
-            const token = {...tokenMatch, symbol}
-            this.cache[symbol] = {...token};
+            let token;
+            if (Array.isArray(tokenMatch)) {
+                token = {clashes: [...tokenMatch], symbol};
+                this.clashIndexes.push(this.tokenCounter)
+            } else {
+                token = {...tokenMatch, symbol}
+                this.cache[symbol] = {...token};
+            }
+            this.tokenCounter++;
             return token;
         }
         for (let i = 0;i < chunks.length; i++) {
@@ -92,7 +102,7 @@ export default class JSExpressionModule {
                     const potentialToken = charArr.join('');
                     tokenMatch = tokens[potentialToken];
                     if (tokenMatch) {
-                        const token = cacheMakeToken(tokenMatch, chunk);
+                        const token = cacheMakeToken(tokenMatch, potentialToken);
                         chunks[i] = token;
                         mergedChunkData.forEach(obj => chunks[obj.index] = null);
                     } else {
@@ -108,8 +118,6 @@ export default class JSExpressionModule {
                         // if the found key overlaps with another chunk
                         } else {
                             let lengthRemainder = selectedTokenKey.length - chunk.length;
-                            const remainingChunk = potentialToken.replace(selectedTokenKey, '');
-                            console.log({remainingChunk, lengthRemainder, selectedTokenKey, chunk});
                             const token = cacheMakeToken(tokens[selectedTokenKey], selectedTokenKey);
                             chunks[i] = token;
                             for (let k = 0;k < mergedChunkData.length; k++) {
@@ -135,7 +143,7 @@ export default class JSExpressionModule {
                 throw new Error(`${chunk} is not a known token!`)
             }
             }
-            console.log(chunks);
+            return chunks.filter(chunk => chunk);
         }
 
     processWords(string) {
@@ -143,7 +151,7 @@ export default class JSExpressionModule {
         if (this.wordTokens.hasOwnProperty(string)) {
             tokenObj = { ...this.wordTokens[string], symbol: string };
         } else {
-            tokenObj = { type: "variable", symbol: string, direction: null, precedence: 16 };
+            tokenObj = { type: isNaN(Number(string)) ? "variable" : "number", symbol: string, direction: null, precedence: 16 };
         }
         return tokenObj;
     }

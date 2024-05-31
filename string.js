@@ -1,1 +1,1 @@
-export const string = ` ++--*<!===++varx 3`;
+export const string = `let x = (5 + 3) * (10 + 2) ** 2 >= 50 && typeof y !== 'undefined' ? x++ : --z;`;
