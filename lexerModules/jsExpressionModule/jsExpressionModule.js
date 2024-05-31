@@ -27,7 +27,6 @@ export default class JSExpressionModule {
 
     tokenise(string) {
         const chunks = string.split(/\s+/).filter(str => str.length);
-        const tokens = [];
         for (let symbol of chunks) {
             const isNum = symbol.length &&!isNaN(Number(symbol));
             if (isNum) {
@@ -38,8 +37,37 @@ export default class JSExpressionModule {
                 this.tokensArr.push(...tokens);
             }
         }
-           console.log(this.clashIndexes);
+        this.groupContext();
         return this.tokensArr;
+    }
+
+    groupContext() {
+        let groupSymbolCount = 0;
+        let openGroupSymbolCount = 0;
+        let groupStartIndex = 0;
+        let previousToken = null;
+        let curentContext = null;
+        for (let i = 0;i < this.tokensArr.length; i++) {
+            const token = this.tokensArr[i];
+            if (token.type === 'group') {
+                groupSymbolCount++;
+                if(token.symbol === '(') {
+                    openGroupSymbolCount++;
+                    groupStartIndex = i;
+                    if (['function', 'variable'].includes(previousToken?.type)) {
+                        curentContext = 'functionCall';
+                    } else {
+                        curentContext = 'group';
+                    }
+                }else if (token.symbol === ')') {
+                    if (openGroupSymbolCount === 0) {
+                        throw new Error(`Token ) has no beggining!`)
+                    }
+                }
+                console.log(token);
+            }
+            previousToken = token;
+        }
     }
 
     processChunk(inputString) {

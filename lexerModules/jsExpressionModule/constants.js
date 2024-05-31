@@ -64,6 +64,7 @@ export const tokens = {
 };
 
 export const wordTokens = {
+  function: { type: "function", direction: "RTL", precedence: 4 },
   delete: { type: "delete", direction: "RTL", precedence: 4 },
   typeof: { type: "typeof", direction: "RTL", precedence: 4 },
   instanceof: { type: "instanceof", direction: "LTR", precedence: 8 },
