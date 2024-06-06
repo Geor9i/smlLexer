@@ -1,9 +1,11 @@
-export const tokens = {
-  "(": {"(": {type: "group", direction: "LTR", precedence: 1}},
-  ")": {")": { type: "group", direction: "LTR", precedence: 1 }},
+export const symbolTokens = {
+  "(": {"(": {type: "parenthesisOpen", groupType: 'parenthesis',  direction: "LTR", precedence: 1}},
+  ")": {")": { type: "parenthesisClose", groupType: 'parenthesis',  direction: "LTR", precedence: 1 }},
   ".": { ".": { type: "memberAccess", direction: "LTR", precedence: 2 }},
-  "[": {"[": {type: "computedMemberAccess", direction: "LTR", precedence: 2, }},
-  "]": { "]": { type: "computedMemberAccess", direction: "LTR", precedence: 2,}},
+  "[": {"[": {type: "squareBracketsOpen", groupType: 'squareBrackets',  direction: "LTR", precedence: 2, }},
+  "]": { "]": { type: "squareBracketsClose", groupType: 'squareBrackets',  direction: "LTR", precedence: 2,}},
+  "{": {"{": {type: "curlyBracketsOpen", groupType: 'curlyBrackets',  direction: "LTR", precedence: 2, }},
+  "}": { "}": { type: "curlyBracketsClose", groupType: 'curlyBrackets',  direction: "LTR", precedence: 2,}},
   "%": { "%": { type: "remainder", direction: "LTR", precedence: 6 }},
   "&": { "&&": { type: "and", direction: "LTR", precedence: 10 }},
   "|": { "||": { type: "or", direction: "LTR", precedence: 11 }},
@@ -11,6 +13,7 @@ export const tokens = {
   ":": { ":": { type: "colon", direction: "RTL", precedence: 13 }},
   ";": { ";": { type: "semicolon", direction: null, precedence: 16 }},
   "'": { "'": { type: "quotes", direction: null, precedence: 16 }},
+  ",": { ",": { type: "comma", direction: null, precedence: 16 }},
   '"': { '"': { type: "doubleQuotes", direction: null, precedence: 16 }},
 
   "!": {
@@ -59,6 +62,7 @@ export const tokens = {
   "=": {
     "===": { type: "typeEquals", direction: "LTR", precedence: 9 },
     "==": { type: "equals", direction: "LTR", precedence: 9 },
+    "=>": { type: "arrowFunction", direction: "LTR", precedence: 4 },
     "=": { type: "assign", direction: "RTL", precedence: 14 },
   },
 };

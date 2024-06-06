@@ -1,73 +1,152 @@
-import { util } from '../../util.js';
-import { tokens, wordTokens } from './constants.js';
+import { symbolTokens, wordTokens } from './constants.js';
 export default class JSExpressionModule {
     constructor() {
-        this.tokens = tokens;
+        this.symbolTokens = symbolTokens;
         this.wordTokens = wordTokens;
         this.cache = {};
-        this.charArr = []; 
-        this.tokensArr = [];
-        this.clashIndexes = [];
-        this.tokenCounter = 0;
-        // Optimise this.tokens
-        for (let [tokenIndex, tokenGroup] of Object.entries(this.tokens)) {
-            let maxLength = 0;
-            let counter = 0;
-            for (let token in tokenGroup) {
-                maxLength = token.length > maxLength ? token.length : maxLength;
-                counter++
-            }
-            this.tokens[tokenIndex] = {
-                tokens: tokenGroup,
-                maxTokenLength: maxLength,
-                tokenAmount: counter,
-            }
-        }
+        this.tokens = [];
+        this.currentContext = null;
+        this.group = {
+            parenthesisOpen: 0,
+            parenthesisClose: 0,
+            squareBracketsOpen: 0,
+            squareBracketsClose: 0,
+            curlyBracketsOpen: 0,
+            curlyBracketsClose: 0,
+        },
+        this.context = null;
     }
 
     tokenise(string) {
-        const chunks = string.split(/\s+/).filter(str => str.length);
-        for (let symbol of chunks) {
-            const isNum = symbol.length &&!isNaN(Number(symbol));
-            if (isNum) {
-                this.tokensArr.push({symbol, type: 'number'});
-                this.tokenCounter++;
-            } else {
-                const tokens = this.processChunk(symbol);
-                this.tokensArr.push(...tokens);
+        let mixedChunks = this.processStrings(string);
+        for (let mixedChunk of mixedChunks) {
+            if (typeof mixedChunk === 'object') {
+                this.buildContext(mixedChunk);
+                continue;
+            }
+            mixedChunk = mixedChunk.split(/\s+/).filter(str => str.length);
+            for (let chunk of mixedChunk) {
+                const isNum = chunk.length &&!isNaN(Number(chunk));
+                if (isNum) {
+                    const token = {symbol: chunk, type: 'number'};
+                    this.buildContext(token);
+                } else {
+                    const tokens = this.processChunk(chunk);
+                    this.buildContext(...tokens);
+                }
             }
         }
-        this.groupContext();
-        return this.tokensArr;
+        return this.tokens;
     }
 
-    groupContext() {
-        let groupSymbolCount = 0;
-        let openGroupSymbolCount = 0;
-        let groupStartIndex = 0;
-        let previousToken = null;
-        let curentContext = null;
-        for (let i = 0;i < this.tokensArr.length; i++) {
-            const token = this.tokensArr[i];
-            if (token.type === 'group') {
-                groupSymbolCount++;
-                if(token.symbol === '(') {
-                    openGroupSymbolCount++;
-                    groupStartIndex = i;
-                    if (['function', 'variable'].includes(previousToken?.type)) {
-                        curentContext = 'functionCall';
-                    } else {
-                        curentContext = 'group';
-                    }
-                }else if (token.symbol === ')') {
-                    if (openGroupSymbolCount === 0) {
-                        throw new Error(`Token ) has no beggining!`)
-                    }
-                }
-                console.log(token);
-            }
-            previousToken = token;
+    buildContext(...tokens) {
+        for(let token of tokens) {
+            console.log(token);
+            this.tokens.push(token);
         }
+    }
+
+    processStrings(inputString) {
+        //Process strings
+        const stringPattern =  /("[^"]*")|('[^']*')/g;
+        const separatedStrings = [];
+        const rawChunks = inputString.split(stringPattern);
+        for (let chunk of rawChunks) {
+            if (!chunk) continue;
+            
+            if(stringPattern.test(chunk)){
+                separatedStrings.push({type: 'string', symbol: chunk})
+            } else {
+                separatedStrings.push(chunk)
+            }
+        }
+        return separatedStrings;
+    }
+
+
+    groupContext() {
+        // TODO Must be able to gather all groups together 
+        const allTokens = [...this.tokens];
+        const groupTokenIndexes = []
+        // Gather all group tokens
+        const openTokenTypes = ['parenthesisOpen', 'squareBracketsOpen', 'curlyBracketsOpen',];
+        const closedTokenTypes = ['parenthesisClose', 'squareBracketsClose', 'curlyBracketsClose'];
+        const pairs = {
+            parenthesis: [],
+            squareBrackets: [],
+            curlyBrackets: [],
+        }
+        for (let i = 0;i < allTokens.length; i++) {
+            const token = allTokens[i];
+            if (openTokenTypes.includes(token.type) ) {
+                groupTokenIndexes.push({type: token.type, index: i})
+            }else if (closedTokenTypes.includes(token.type) ) {
+                groupTokenIndexes.push({type: token.type, index: i})
+            }
+        }
+        const getGroupType = (type) => {
+            const groupType = type.toLowerCase().includes('open') ? 'open' : 'close';
+            const typeName = type.replace(new RegExp(`${groupType}`, 'i'), '');
+        }
+        for (let i = 0; i < groupTokenIndexes.length; i++) {
+            const { type, index } = groupTokenIndexes[i];
+            let openTypeCounter = 0;
+            for(let j = i + 1; j < groupTokenIndexes.length; j++) {
+                const { type: secondType, index: secondIndex } = groupTokenIndexes[j];
+                
+                console.log({type, secondType});
+            }
+        }
+        console.log(groupTokenIndexes);
+           
+        // const group = () => {
+        //    while(itteratorIndex < groupTokenIndexes.length){
+        //         const groupTokenIndex = groupTokenIndexes[itteratorIndex];
+        //         const groupToken = allTokens[groupTokenIndex];
+        //         const type = groupToken.type;
+        //         let openTokenIndex;
+        //         if(type.toLowerCase().includes('open')) {
+        //             symbolCount[type]++;
+        //             pairs[type]
+        //         } else {
+
+        //         }
+        //         // if(groupToken.symbol === '(') {
+        //         //     groupSymbolCount++;
+        //         //     prevGroupToken = allTokens[groupTokenIndex - 1];
+        //         //     if (prevGroupToken && prevGroupToken.type === 'variable') {
+        //         //         isFunctionCall = true;
+        //         //     }
+        //         //     openGroupIndex = groupTokenIndexes[itteratorIndex];
+        //         // } else if (groupToken.symbol === ')') {
+        //         //     if (groupSymbolCount <= 0) {
+        //         //         throw new Error(`Token ")" has no beggining!`)
+        //         //     } else if (groupSymbolCount === 1) {
+        //         //         pairs.push({startIndex: openGroupIndex, endIndex: groupTokenIndexes[itteratorIndex] + 1, isFunctionCall});
+        //         //         openGroupIndex = null;
+        //         //         groupSymbolCount = 0;
+        //         //         isFunctionCall = false;
+        //         //     }else {
+        //         //         itteratorIndex++;
+        //         //         group();
+        //         //     }
+        //         // }
+        //         itteratorIndex++
+        //    }
+        // }
+        // group();
+        const resultTokens = [];
+        let prevCutIndex = 0;
+        // rebuild tokens
+        // for (let group of pairs) {
+        //     const { startIndex, endIndex, isFunctionCall } = group;
+        //     const previousTokens = allTokens.slice(prevCutIndex, startIndex - (isFunctionCall ? 1 : 0))
+        //     const groupedTokens = allTokens.slice(startIndex - (isFunctionCall ? 1 : 0), endIndex)
+        //     resultTokens.push(...previousTokens, groupedTokens)
+        //     prevCutIndex = endIndex
+        // }
+        // resultTokens.push(...allTokens.slice(prevCutIndex))
+        // this.tokensArr = resultTokens;
     }
 
     processChunk(inputString) {
@@ -79,7 +158,6 @@ export default class JSExpressionModule {
             if (isWord) {
                 const token = this.processWords(chunk);
                 this.cache[chunk] = token;
-                this.tokenCounter++;
                 return token;
             } 
             return chunk;
@@ -93,85 +171,79 @@ export default class JSExpressionModule {
             let token;
             if (Array.isArray(tokenMatch)) {
                 token = {clashes: [...tokenMatch], symbol};
-                this.clashIndexes.push(this.tokenCounter)
             } else {
                 token = {...tokenMatch, symbol}
                 this.cache[symbol] = {...token};
             }
-            this.tokenCounter++;
             return token;
         }
-        for (let i = 0;i < chunks.length; i++) {
-            const chunk = chunks[i];
-            if(typeof chunk !== 'string') continue;
+        const getChunk = (chunkIndex) => {
+            if (chunks.length > chunkIndex && typeof chunks[chunkIndex] === 'string') {
+                return chunks[chunkIndex];
+            }
+            return null;
+        }
+        const getTokenGroup = (char) => this.symbolTokens[char] ?? null;
+        const resultTokens = [];
+        let chunkIndex = 0;
+        let charIndex = 0;
+        while(chunkIndex < chunks.length) {
+            if (typeof chunks[chunkIndex] !== 'string') {
+                resultTokens.push(chunks[chunkIndex]);
+                chunkIndex++;
+                continue;
+            }
 
-            const char = chunk[0];
-            const tokenGroup = this.tokens[char];
-            if (tokenGroup) {
-                const { tokens, maxTokenLength, tokenAmount } = tokenGroup;
-                let tokenMatch = tokens[chunk];
-                if (maxTokenLength === chunk.length && tokenMatch) {
-                    const token = cacheMakeToken(tokenMatch, chunk)
-                    chunks[i] = token;
-                } else {
-                    let missingSymbolLength = maxTokenLength - chunk.length;
-                    // Get reamining potential symbol
-                    const charArr = [...chunk];
-                    const mergedChunkData = [];
-                    for (let j = i;j < chunks.length; j++) {
-                        if (missingSymbolLength <= 0 || (j === chunks.length - 1)) break;
-                        
-                        const nextChunk = chunks[j + 1];
-                        if (typeof nextChunk !== 'string') continue;
-                        charArr.push(...nextChunk);
-                        mergedChunkData.push({index: j + 1, str: nextChunk});
-                        missingSymbolLength -= nextChunk.length;
-                    }
-                    const potentialToken = charArr.join('');
-                    tokenMatch = tokens[potentialToken];
-                    if (tokenMatch) {
-                        const token = cacheMakeToken(tokenMatch, potentialToken);
-                        chunks[i] = token;
-                        mergedChunkData.forEach(obj => chunks[obj.index] = null);
-                    } else {
-                        let selectedTokenKey = '';
-                        for (let tokenKey in tokens) {
-                            selectedTokenKey = tokenKey.length > selectedTokenKey && potentialToken.includes(tokenKey) ? tokenKey : selectedTokenKey;
-                        }
-                        let selectedToken = tokens[selectedTokenKey];
-                        // if the found key is the same length as the original chunk
-                        if (selectedTokenKey.length === chunk.length) {
-                            const token = cacheMakeToken(selectedToken, chunk);
-                            chunks[i] = token;
-                        // if the found key overlaps with another chunk
-                        } else {
-                            let lengthRemainder = selectedTokenKey.length - chunk.length;
-                            const token = cacheMakeToken(tokens[selectedTokenKey], selectedTokenKey);
-                            chunks[i] = token;
-                            for (let k = 0;k < mergedChunkData.length; k++) {
-                                const obj = mergedChunkData[k];
-                                const remainder = obj.str.length - lengthRemainder;
-                                if (remainder > 0) {
-                                    chunks[obj.index] = obj.str.slice(obj.str.length - remainder);
-                                    mergedChunkData[k] = null;
-                                    break;
-                                } else {
-                                    lengthRemainder = Math.abs(remainder);
-                                }
-                            }
-                            mergedChunkData.forEach(obj => {
-                                if (obj) {
-                                    chunks[obj.index] = null;
-                                }
-                            });
-                        } 
-                    }
+            const chunkArr = [...chunks[chunkIndex]];
+            while(chunkArr.length) {
+                let char = chunkArr[charIndex];
+                let tokenGroup = getTokenGroup(char);
+                if (!tokenGroup) {
+                    throw new Error(`"${char}" is not a recognised Token!`);
                 }
-            } else {
-                throw new Error(`${chunk} is not a known token!`)
+                let tokens = Object.keys(tokenGroup).sort((a, b) => b.length - a.length);
+                let tokenIndex = 0;
+                let potentialToken = tokens[tokenIndex];
+                let tokenLength = potentialToken.length;
+                let nextChunkIndex = chunkIndex;
+                while(potentialToken.length > chunkArr.length){
+                    let secondLoopBreakFlag = false;
+                    nextChunkIndex++;
+                    let nextChunk = getChunk(nextChunkIndex);
+                    if (!nextChunk) {
+                        tokenIndex++;
+                        potentialToken = tokens[tokenIndex];
+                    } else {
+                        chunkArr.push(...nextChunk);
+                        chunks[nextChunkIndex] = null;
+                        chunkIndex++;
+                    }
+                    let chunkArrTargetChars = chunkArr.slice(0, tokenLength);
+                    while(chunkArrTargetChars.length) {
+                        let str = chunkArrTargetChars.join('');
+                        if (str === potentialToken) {
+                            secondLoopBreakFlag = true;
+                            break
+                        }
+                        tokenIndex++
+                        potentialToken = tokens[tokenIndex];
+                        tokenLength = potentialToken.length;
+                        chunkArrTargetChars = chunkArr.slice(0, tokenLength);
+                    }
+                    if (secondLoopBreakFlag) break;
+                }
+                const token = cacheMakeToken(tokenGroup[potentialToken], potentialToken);
+                // Group tokens
+                if (token.hasOwnProperty('groupType')) {
+                    const type = token.type;
+                    this.group[type]++;
+                }
+                resultTokens.push(token);
+                chunkArr.splice(0, tokenLength);
             }
-            }
-            return chunks.filter(chunk => chunk);
+            chunkIndex++;
+        }
+      return resultTokens;
         }
 
     processWords(string) {
@@ -184,3 +256,4 @@ export default class JSExpressionModule {
         return tokenObj;
     }
 }
+

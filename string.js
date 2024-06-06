@@ -1,1 +1,1 @@
-export const string = `let x = (5 + 3) * (10 + 2) ** 2 add(5 + 2)`;
+export const string = `(a + b ** (a * b)) / [2,3,4,5,6].reduce((acc, curr) => acc += curr)`;
