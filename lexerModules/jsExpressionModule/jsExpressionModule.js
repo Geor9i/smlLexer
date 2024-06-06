@@ -3,6 +3,7 @@ export default class JSExpressionModule {
     constructor() {
         this.symbolTokens = symbolTokens;
         this.wordTokens = wordTokens;
+        this.cursor = 0;
         this.cache = {};
         this.tokens = [];
         this.currentContext = null;
@@ -18,17 +19,23 @@ export default class JSExpressionModule {
     }
 
     tokenise(string) {
-        let mixedChunks = this.processStrings(string);
-        for (let mixedChunk of mixedChunks) {
-            if (typeof mixedChunk === 'object') {
-                this.buildContext(mixedChunk);
+        let chunkObjects = this.processStrings(string);
+        for (let chunkObject of chunkObjects) {
+            if (chunkObject.type === 'string') {
+                this.buildContext(chunkObject);
                 continue;
             }
-            mixedChunk = mixedChunk.split(/\s+/).filter(str => str.length);
-            for (let chunk of mixedChunk) {
+            const whitespacePattern = /(\s+)/;
+            let chunks = chunkObject.symbol.split(whitespacePattern).filter(str => str.length);
+            for (let chunk of chunks) {
+                if (chunk.match(whitespacePattern) !== null) {
+                    this.indexString(chunk);
+                    continue;
+                }
                 const isNum = chunk.length &&!isNaN(Number(chunk));
                 if (isNum) {
-                    const token = {symbol: chunk, type: 'number'};
+                    const [startIndex, endIndex] = this.indexString(chunk);
+                    const token = { symbol: chunk, type: 'number', startIndex, endIndex };
                     this.buildContext(token);
                 } else {
                     const tokens = this.processChunk(chunk);
@@ -53,12 +60,14 @@ export default class JSExpressionModule {
         const rawChunks = inputString.split(stringPattern);
         for (let chunk of rawChunks) {
             if (!chunk) continue;
-            
-            if(stringPattern.test(chunk)){
-                separatedStrings.push({type: 'string', symbol: chunk})
-            } else {
-                separatedStrings.push(chunk)
-            }
+                const isString = stringPattern.test(chunk);
+                if (isString) {
+                    const [startIndex, endIndex] = this.indexString(chunk);
+                    separatedStrings.push({type: 'string', symbol: chunk, startIndex, endIndex })
+                }else {
+                    separatedStrings.push({type: 'chunk', symbol: chunk })
+                }
+                    
         }
         return separatedStrings;
     }
@@ -150,6 +159,24 @@ export default class JSExpressionModule {
     }
 
     processChunk(inputString) {
+        const cacheMakeToken = (tokenMatch, symbol) => {
+            let token;
+            const [startIndex, endIndex] = this.indexString(symbol)
+            if (Array.isArray(tokenMatch)) {
+                token = {clashes: [...tokenMatch], symbol, startIndex, endIndex};
+            } else {
+                token = {...tokenMatch, symbol, startIndex, endIndex}
+                this.cache[symbol] = {...token};
+            }
+            return token;
+        }
+        const getChunk = (chunkIndex) => {
+            if (chunks.length > chunkIndex && typeof chunks[chunkIndex] === 'string') {
+                return chunks[chunkIndex];
+            }
+            return null;
+        }
+
         const chunks = inputString.split(/(\W+)/)
         .flatMap(str => str.match(/(\W)\1*/g) ?? str)
         .filter(str => str.length)
@@ -162,34 +189,14 @@ export default class JSExpressionModule {
             } 
             return chunk;
         })
-        const tokens = this.processRawSymbols(chunks);
-        return tokens;
-    }
-
-    processRawSymbols(chunks) {
-        const cacheMakeToken = (tokenMatch, symbol) => {
-            let token;
-            if (Array.isArray(tokenMatch)) {
-                token = {clashes: [...tokenMatch], symbol};
-            } else {
-                token = {...tokenMatch, symbol}
-                this.cache[symbol] = {...token};
-            }
-            return token;
-        }
-        const getChunk = (chunkIndex) => {
-            if (chunks.length > chunkIndex && typeof chunks[chunkIndex] === 'string') {
-                return chunks[chunkIndex];
-            }
-            return null;
-        }
-        const getTokenGroup = (char) => this.symbolTokens[char] ?? null;
+       
         const resultTokens = [];
         let chunkIndex = 0;
         let charIndex = 0;
         while(chunkIndex < chunks.length) {
-            if (typeof chunks[chunkIndex] !== 'string') {
-                resultTokens.push(chunks[chunkIndex]);
+            if (typeof chunks[chunkIndex] === 'object') {
+                const [startIndex, endIndex] = this.indexString(chunks[chunkIndex].symbol);
+                resultTokens.push({...chunks[chunkIndex], startIndex, endIndex});
                 chunkIndex++;
                 continue;
             }
@@ -197,7 +204,7 @@ export default class JSExpressionModule {
             const chunkArr = [...chunks[chunkIndex]];
             while(chunkArr.length) {
                 let char = chunkArr[charIndex];
-                let tokenGroup = getTokenGroup(char);
+                let tokenGroup = this.symbolTokens[char] ?? null;
                 if (!tokenGroup) {
                     throw new Error(`"${char}" is not a recognised Token!`);
                 }
@@ -251,9 +258,16 @@ export default class JSExpressionModule {
         if (this.wordTokens.hasOwnProperty(string)) {
             tokenObj = { ...this.wordTokens[string], symbol: string };
         } else {
-            tokenObj = { type: isNaN(Number(string)) ? "variable" : "number", symbol: string, direction: null, precedence: 16 };
+            tokenObj = { type: isNaN(Number(string)) ? "word" : "number", symbol: string, direction: null, precedence: 16};
         }
         return tokenObj;
+    }
+
+    indexString(string) {
+        const startIndex = this.cursor
+        const endIndex = this.cursor + string.length - 1;
+        this.cursor += string.length;
+        return [startIndex, endIndex];
     }
 }
 

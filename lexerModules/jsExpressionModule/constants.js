@@ -82,3 +82,9 @@ export const wordTokens = {
   const: { type: "const", direction: null, precedence: 16 },
   var: { type: "var", direction: null, precedence: 16 },
 };
+
+export const contexts = {
+  array: {
+    
+  },
+}
