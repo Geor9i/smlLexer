@@ -3,13 +3,13 @@ const { OPERATORS, ASSIGNMENT_OPERATORS, BOUNDARY_OPERATORS, FUNCTIONAL_OPERATOR
 
 grammar
 export const symbolTokens = {
-  "(": {"(": {...BOUNDARY_OPERATORS.OPEN_PARENTHESIS, groupType: 'parenthesis' }},
-  ")": {")": { ...BOUNDARY_OPERATORS.CLOSE_PARENTHESIS, groupType: 'parenthesis' }},
-  ".": { ".": { ...BOUNDARY_OPERATORS.MEMBER_ACCESS}},
-  "[": {"[": {...BOUNDARY_OPERATORS.OPEN_SQUARE_BRACKETS, groupType: 'squareBrackets'}},
-  "]": { "]": {...BOUNDARY_OPERATORS.CLOSE_SQUARE_BRACKETS, groupType: 'squareBrackets'}},
-  "{": {"{": {...BOUNDARY_OPERATORS.OPEN_CURLY_BRACKETS, groupType: 'curlyBrackets' }},
-  "}": { "}": {...BOUNDARY_OPERATORS.CLOSE_CURLY_BRACKETS, groupType: 'curlyBrackets' }},
+  "(": {"(": {...BOUNDARY_OPERATORS.OPEN_PARENTHESIS }},
+  ")": {")": { ...BOUNDARY_OPERATORS.CLOSE_PARENTHESIS }},
+  ".": { ".": { ...BOUNDARY_OPERATORS.MEMBER_ACCESS }},
+  "[": {"[": {...BOUNDARY_OPERATORS.OPEN_SQUARE_BRACKETS }},
+  "]": { "]": {...BOUNDARY_OPERATORS.CLOSE_SQUARE_BRACKETS }},
+  "{": {"{": {...BOUNDARY_OPERATORS.OPEN_CURLY_BRACKETS }},
+  "}": { "}": {...BOUNDARY_OPERATORS.CLOSE_CURLY_BRACKETS }},
   "%": { "%": { ...OPERATORS.REMAINDER }},
   "&": { "&&": { ...OPERATORS.AND }},
   "|": { "||": { ...OPERATORS.OR }},

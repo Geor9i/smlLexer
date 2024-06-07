@@ -6,4 +6,3 @@ lexer.ast(string)
 const endTime = performance.now()
 const result = endTime - startTime;
 console.log('time: ', result);
-const expression = '5 + 6 - 2 * ( 9 - 8 )';

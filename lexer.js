@@ -1,10 +1,9 @@
-import JSExpressionModule from "./lexerModules/jsExpressionModule/jsExpressionModule.js";
-import { util } from "./util.js";
+import JSParserModule from "./lexerModules/JSParserModule/JSParserModule.js";
 
 export default class SmlLexer {
     constructor(module) {
         this.modules = {
-            jsExpressionModule: new JSExpressionModule()
+            jsExpressionModule: new JSParserModule()
         }
         if (!this.modules[module]) throw new Error(`${module} does not exist!`);
 

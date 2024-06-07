@@ -1,4 +1,4 @@
-
+import { context } from "./context.js";
 
 const BOUNDARY_OPERATORS = {
     OPEN_PARENTHESIS: {
@@ -6,36 +6,42 @@ const BOUNDARY_OPERATORS = {
         precedence: 1,
         direction: 'LTR',
         type: 'OPEN_PARENTHESIS',
+        group: 'PARENTHESIS',
     },
     CLOSE_PARENTHESIS: {
         symbol: ')',
         precedence: 1,
         direction: 'LTR',
         type: 'CLOSE_PARENTHESIS',
+        group: 'PARENTHESIS',
     },
     OPEN_SQUARE_BRACKETS: {
         symbol: '[',
         precedence: 2,
         direction: 'LTR',
         type: 'OPEN_SQUARE_BRACKETS',
+        group: 'SQUARE_BRACKETS',
     },
     CLOSE_SQUARE_BRACKETS: {
         symbol: ']',
         precedence: 2,
         direction: 'LTR',
         type: 'CLOSE_SQUARE_BRACKETS',
+        group: 'SQUARE_BRACKETS',
     },
     OPEN_CURLY_BRACKETS: {
         symbol: '{',
         precedence: 2,
         direction: 'LTR',
         type: 'OPEN_CURLY_BRACKETS',
+        group: 'CURLY_BRACKETS',
     },
     CLOSE_CURLY_BRACKETS: {
         symbol: '}',
         precedence: 2,
-        type: 'CLOSE_CURLY_BRACKETS',
         direction: 'LTR',
+        type: 'CLOSE_CURLY_BRACKETS',
+        group: 'CURLY_BRACKETS',
     },
     MEMBER_ACCESS: {
         symbol: '.',
@@ -84,38 +90,39 @@ const BOUNDARY_OPERATORS = {
 
 //? Base Values
 const STRING = {
-    identifier: ['"', "'"],
-    content: 'string'
+    boundary: ['"', "'"],
+    type: 'string'
 };
 
 const BOOLEAN = {
-    content: 'boolean'
+    type: 'boolean'
 };
 
 const UNDEFINED = {
-    content: 'undefined'
+    type: 'undefined'
 };
 
 const NULL = {
-    content: 'null'
+    type: 'null'
 };
 
 const NUMBER = {
-    content: 'number' 
+    type: 'number' 
 };
 
 const SYMBOL = {
-    content: 'symbol' 
+    type: 'symbol' 
 };
 
 const PRIMITIVE_VALUE = [STRING, NUMBER, BOOLEAN, NULL, UNDEFINED, SYMBOL];
 
 const OBJECT = {
-    identifier: ["{", "}"],
+    boundary: ["{", "}"],
     content: [{ key: PRIMITIVE_VALUE || OBJECT, value: PRIMITIVE_VALUE || OBJECT }]
 };  
 
 const BASE_VALUE = [...PRIMITIVE_VALUE, OBJECT];
+
 
 //? Operators
 const OPERATORS = {
@@ -292,8 +299,6 @@ const ASSIGNMENT_OPERATORS = {
     },
 };
 
-
-
 const BINARY_OPERATORS = [
     OPERATORS.ADDITION, OPERATORS.SUBTRACTION, OPERATORS.MULTIPLICATION, 
     OPERATORS.DIVISION, OPERATORS.EXPONENTIATION, OPERATORS.LESS_EQUALS, 
@@ -361,24 +366,32 @@ LET: {
     precedence: 4,
     type: 'LET',
     symbol: 'let',
+    context: {...context.VARIABLE_DECLARATION},
 },
 CONST: {
     precedence: 4,
     type: 'CONST',
     symbol: 'const',
+    context: {...context.VARIABLE_DECLARATION},
 },
 VAR: {
     precedence: 4,
     type: 'VAR',
     symbol: 'var',
+    context: {...context.VARIABLE_DECLARATION},
 },
 }
 
 //? Expressions
 const VALUE = {
     type: 'VALUE',
-    content: BASE_VALUE
+    type: BASE_VALUE
 };
+
+const PARAMS ={
+    value: VALUE,
+    delimiter: BOUNDARY_OPERATORS.COMMA
+}
 
 const UNARY_EXPRESSION = {
     type: 'UNARY_EXPRESSION',
@@ -476,8 +489,8 @@ const GROUP = {
 
 //? Arrays
 const ARRAY = {
-    type: 'ARRAY',
-    content: ['[', VALUE, ',', VALUE, ']'] // Simplified
+    value: VALUE,
+    delimiter: BOUNDARY_OPERATORS.COMMA
 };
 
 //? Function and Code Block
@@ -503,6 +516,5 @@ export const grammar = {
     STATEMENT,
     GROUP,
     ARRAY,
-    FUNCTION_DECLARATION,
     CODE_BLOCK
 };

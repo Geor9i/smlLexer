@@ -1,29 +1,25 @@
-import { symbolTokens, wordTokens } from './constants.js';
+import JSExecutionModule from '../../JSExecutionModule.js';
 import { grammar } from './grammar.js';
-export default class JSExpressionModule {
+import { symbolTokens, wordTokens } from './tokenDictionary.js';
+export default class JSParserModule {
     constructor() {
+        this.execution = new JSExecutionModule();
         this.symbolTokens = symbolTokens;
         this.wordTokens = wordTokens;
         this.cursor = 0;
         this.cache = {};
         this.tokens = [];
         this.currentContext = null;
-        this.group = {
-            parenthesisOpen: 0,
-            parenthesisClose: 0,
-            squareBracketsOpen: 0,
-            squareBracketsClose: 0,
-            curlyBracketsOpen: 0,
-            curlyBracketsClose: 0,
-        },
         this.context = null;
+        this.string = null;
     }
 
     tokenise(string) {
+        this.string = string;
         let chunkObjects = this.processStrings(string);
         for (let chunkObject of chunkObjects) {
             if (chunkObject.type === 'string') {
-                this.buildContext(chunkObject);
+                this.executionLayout(chunkObject);
                 continue;
             }
             const whitespacePattern = /(\s+)/;
@@ -37,20 +33,104 @@ export default class JSExpressionModule {
                 if (isNum) {
                     const [startIndex, endIndex] = this.indexString(chunk);
                     const token = { symbol: chunk, type: 'number', startIndex, endIndex };
-                    this.buildContext(token);
+                    this.executionLayout(token);
                 } else {
                     const tokens = this.processChunk(chunk);
-                    this.buildContext(...tokens);
+                    this.executionLayout(...tokens);
                 }
             }
         }
         return this.tokens;
     }
 
-    buildContext(...tokens) {
+    executionLayout(...tokens) {
         for(let token of tokens) {
-            // console.log(token);
-            this.tokens.push(token);
+            if (!this.context && token.context) {
+                this.context = this.buildContext(token);
+                if (!this.context) continue;
+            }
+            const isValid = this.context.validateType(token);
+
+            if (isValid) {
+                this.tokens.push(token);
+            } else {
+                throw new Error(`Invalid Token ${this.string.slice(token.startIndex - 30, token.startIndex) + '-> ' + this.string[token.startIndex]}`)
+            }
+        }
+    }
+
+    buildContext(token) {
+        if(typeof token.context !== 'object') return null;
+
+        return {
+            ...token.context,
+            string: this.string,
+            lastToken: null,
+            index: 0,
+            step: null,
+            previousStep: null,
+            complete: false,
+            _next() {
+                this.previousStep = this.step;
+                this.step = this.content[this.index++];
+                
+                if (!this.step && this.repeat) {
+                    this.index = 0;
+                    this.step = this.content[this.index++];
+                }
+                return this.step ?? null;
+            },
+            validateType(token) {
+                const inputType = token.type;
+                if (!inputType) return null;
+                if (!this.step) {
+                    this._next()
+                    if (!this.step) {
+                        this.complete = true;
+                        return null;
+                    }
+                }
+                let result;
+                if (typeof this.step === 'object' && !Array.isArray(this.step)) {
+                    let { content, terminator, isTerminated } = this.step;
+                    if (!this.step.selectorIndex) {
+                        this.step.selectorIndex = 0;
+                    }
+                    let currentType = content[this.step.selectorIndex];
+                    this.step.selectorIndex++;
+                    
+                    if (this.step.selectorIndex > content.length - 1 && this.step.repeat) {
+                        this.step.selectorIndex = 0;
+                    }
+
+                    if (currentType && currentType === inputType) {
+                        this.lastToken = token;
+                        this.step.isTerminated = terminator === inputType;
+                        return true;
+                    } 
+
+                    if (currentType !== inputType && terminator !== inputType && !isTerminated) {
+                        throw new Error(`Unterminated ${this.type}  ${this.string.slice(this.lastToken.startIndex - 30, this.lastToken.startIndex) + '-> ' + this.string[this.lastToken.startIndex]}`)
+                    } else {
+                        this._next();
+                        return this.validateType(token);
+                    }
+                } else if (Array.isArray(this.step)) {
+                    result = this.step.includes(inputType)
+                    this.lastToken = token;
+                } else if (typeof this.step === 'string') {
+                    result = this.step === inputType;
+                    this.lastToken = token;
+                    if (!result) {
+                        const grammarType = grammar[this.step] || grammar.ASSIGNMENT_OPERATORS[this.step] || grammar.OPERATORS[this.step] || grammar.BOUNDARY_OPERATORS[this.step];
+                        const acceptedTypes = grammarType.type;
+                        const match = Array.isArray(acceptedTypes) ? acceptedTypes.find(item => item.type === inputType) : acceptedTypes === inputType;
+                        return !!match?.type;
+                    } 
+                }
+                this._next();
+                return result;
+            }
         }
     }
 
