@@ -1,4 +1,5 @@
 import { symbolTokens, wordTokens } from './constants.js';
+import { grammar } from './grammar.js';
 export default class JSExpressionModule {
     constructor() {
         this.symbolTokens = symbolTokens;
@@ -48,13 +49,12 @@ export default class JSExpressionModule {
 
     buildContext(...tokens) {
         for(let token of tokens) {
-            console.log(token);
+            // console.log(token);
             this.tokens.push(token);
         }
     }
 
     processStrings(inputString) {
-        //Process strings
         const stringPattern =  /("[^"]*")|('[^']*')/g;
         const separatedStrings = [];
         const rawChunks = inputString.split(stringPattern);
@@ -71,7 +71,6 @@ export default class JSExpressionModule {
         }
         return separatedStrings;
     }
-
 
     groupContext() {
         // TODO Must be able to gather all groups together 
@@ -201,7 +200,7 @@ export default class JSExpressionModule {
                 continue;
             }
 
-            const chunkArr = [...chunks[chunkIndex]];
+            let chunkArr = [...chunks[chunkIndex]];
             while(chunkArr.length) {
                 let char = chunkArr[charIndex];
                 let tokenGroup = this.symbolTokens[char] ?? null;
@@ -246,7 +245,7 @@ export default class JSExpressionModule {
                     this.group[type]++;
                 }
                 resultTokens.push(token);
-                chunkArr.splice(0, tokenLength);
+                chunkArr = chunkArr.slice(tokenLength);
             }
             chunkIndex++;
         }
